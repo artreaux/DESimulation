@@ -1,0 +1,141 @@
+import pandas as pd
+import os
+from datetime import datetime
+
+def convert_date(date_str):
+    """ Convert date to 'YYYY-MM-DD' format """
+    if pd.isna(date_str):
+        return None
+    if isinstance(date_str, int):
+        return None
+    for fmt in ("%m/%d/%Y", "%m/%d/%y", "%Y-%m-%d", "%m/%d/%Y %H:%M", "%m/%d/%y %H:%M"):
+        try:
+            return datetime.strptime(date_str, fmt).strftime('%Y-%m-%d')
+        except ValueError:
+            continue
+    return date_str  # Return original if no format matches
+
+def convert_time(time_str):
+    """ Convert time to 'HH:MM:SS' format """
+    if pd.isna(time_str):
+        return None
+    if isinstance(time_str, int):
+        return None
+    for fmt in ("%I:%M:%S %p", "%H:%M:%S", "%H:%M"):
+        try:
+            return datetime.strptime(time_str, fmt).strftime('%H:%M:%S')
+        except ValueError:
+            continue
+    try:
+        return (datetime.utcfromtimestamp(float(time_str) * 86400)).strftime('%H:%M:%S')
+    except ValueError:
+        return time_str  # Return original if no format matches
+
+def transform_csv(input_file, output_file):
+    df = pd.read_csv(input_file)
+    print(f"Processing file: {input_file}")
+    print(f"Columns in file: {list(df.columns)}")
+    
+    # Rename columns to match staging_table structure
+    column_mapping = {
+        'DATE BOOKED': 'DATE_BOOKED',
+        'DATEBOOKED': 'DATE_BOOKED',
+        'DateBooked': 'DATE_BOOKED',
+        'DATE_BOOKED': 'DATE_BOOKED',
+        'ORIGIN': 'ORIGIN',
+        'Origin': 'ORIGIN',
+        'DESTINATION': 'DESTINATION',
+        'Destination': 'DESTINATION',
+        'ORDER REF': 'ORDER_REF',
+        'ORDER_REF': 'ORDER_REF',
+        'OrderRef': 'ORDER_REF',
+        'TICKET NO': 'TICKET_NO',
+        'TICKET_NO': 'TICKET_NO',
+        'TicketNo': 'TICKET_NO',
+        'SEAT NO': 'SEATNO',
+        'SEATNO': 'SEATNO',
+        'SeatNo': 'SEATNO',
+        'DATE REDEEMED': 'DATE_REDEEMED',
+        'DATE_REDEEMED': 'DATE_REDEEMED',
+        'DateRedeemed': 'DATE_REDEEMED',
+        'EMAIL': 'EMAIL',
+        'Email': 'EMAIL',
+        'MOBILE NO': 'MOBILENO',
+        'MOBILENO': 'MOBILENO',
+        'MobileNo': 'MOBILENO',
+        'Fare': 'FARE',
+        'FARE': 'FARE',
+        'CONVENIENCE FEE': 'CONVENIENCE_FEE',
+        'CONVENIENCE_FEE': 'CONVENIENCE_FEE',
+        'ConvenienceFee': 'CONVENIENCE_FEE',
+        'DISCOUNT': 'DISCOUNT',
+        'Discount': 'DISCOUNT',
+        'DEPARTURE DATE': 'DEPARTURE_DATE',
+        'DEPARTURE_DATE': 'DEPARTURE_DATE',
+        'DepartureDate': 'DEPARTURE_DATE',
+        'DEPARTURE TIME': 'DEPARTURE_TIME',
+        'DEPARTURE_TIME': 'DEPARTURE_TIME',
+        'DepartureTime': 'DEPARTURE_TIME',
+        'BusType': 'BUS_TYPE',
+        'BUS_TYPE': 'BUS_TYPE',
+        'NUMBER OF VOUCHERS BOOKED': 'NUMBER_OF_VOUCHERS_BOOKED',
+        'NUMBER_OF_VOUCHERS_BOOKED': 'NUMBER_OF_VOUCHERS_BOOKED',
+        'NumberOfVouchersBooked': 'NUMBER_OF_VOUCHERS_BOOKED'
+    }
+
+    # Rename columns
+    df = df.rename(columns=column_mapping)
+    
+    # Apply conversions to the necessary columns only if they exist
+    if 'DATE_BOOKED' in df.columns:
+        df['DATE_BOOKED'] = df['DATE_BOOKED'].apply(convert_date)
+    if 'DEPARTURE_DATE' in df.columns:
+        df['DEPARTURE_DATE'] = df['DEPARTURE_DATE'].apply(convert_date)
+    if 'DEPARTURE_TIME' in df.columns:
+        df['DEPARTURE_TIME'] = df['DEPARTURE_TIME'].apply(convert_time)
+    if 'NUMBER_OF_VOUCHERS_BOOKED' in df.columns:
+        df['NUMBER_OF_VOUCHERS_BOOKED'] = df['NUMBER_OF_VOUCHERS_BOOKED'].str.extract(r'(\d+)', expand=False)
+
+    # Add any missing columns with default values
+    expected_columns = [
+        'DATE_BOOKED', 'ORIGIN', 'DESTINATION', 'ORDER_REF', 'TICKET_NO', 'SEATNO',
+        'DATE_REDEEMED', 'EMAIL', 'MOBILENO', 'FARE', 'CONVENIENCE_FEE', 'DISCOUNT',
+        'DEPARTURE_DATE', 'DEPARTURE_TIME', 'BUS_TYPE', 'NUMBER_OF_VOUCHERS_BOOKED'
+    ]
+    for column in expected_columns:
+        if column not in df.columns:
+            df[column] = None
+
+    # Ensure the dataframe has the columns in the expected order
+    df = df[expected_columns]
+
+    # Save the transformed data to a new CSV file
+    df.to_csv(output_file, index=False)
+
+def process_files(file_paths, output_directory):
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory)
+
+    for file_path in file_paths:
+        output_file = os.path.join(output_directory, os.path.basename(file_path))
+        transform_csv(file_path, output_file)
+        print(f"Processed {file_path}")
+
+# List of file paths to be processed
+file_paths = [
+    "C:\\ProgramData\\MySQL\\MySQL Server 8.0\\Uploads\\February-2023.csv",
+    "C:\\ProgramData\\MySQL\\MySQL Server 8.0\\Uploads\\January-2023.csv",
+    "C:\\ProgramData\\MySQL\\MySQL Server 8.0\\Uploads\\July-2023.csv",
+    "C:\\ProgramData\\MySQL\\MySQL Server 8.0\\Uploads\\June-2023.csv",
+    "C:\\ProgramData\\MySQL\\MySQL Server 8.0\\Uploads\\March-2023.csv",
+    "C:\\ProgramData\\MySQL\\MySQL Server 8.0\\Uploads\\May-2023.csv",
+    "C:\\ProgramData\\MySQL\\MySQL Server 8.0\\Uploads\\November-2023.csv",
+    "C:\\ProgramData\\MySQL\\MySQL Server 8.0\\Uploads\\October-2023.csv",
+    "C:\\ProgramData\\MySQL\\MySQL Server 8.0\\Uploads\\September-2023.csv",
+    "C:\\ProgramData\\MySQL\\MySQL Server 8.0\\Uploads\\April-2023.csv",
+    "C:\\ProgramData\\MySQL\\MySQL Server 8.0\\Uploads\\August-2023.csv",
+    "C:\\ProgramData\\MySQL\\MySQL Server 8.0\\Uploads\\December-2023.csv"
+]
+
+output_directory = "C:\\ProgramData\\MySQL\\MySQL Server 8.0\\Uploads\\Transformed\\"
+process_files(file_paths, output_directory)
